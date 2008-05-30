@@ -18,7 +18,7 @@ referenced page caching like this:
       caches_page_with_references :show, :track => ['@article', {'@site' => :tags}]
     end
 
-This will register the @article and @site instance variables for read-access
+This will register the `@article` and `@site` instance variables for read-access
 tracking when the controller action calls its render method: We're interested 
 in read access that happens from our view because that's what gets cached.
 
@@ -32,7 +32,7 @@ the @site object, except that we only track access to the tags method here.)
 
 Thus, we can put an ArticleSweeper in place that, when the article gets updated,
 will remove all pages for all URLs from the cache that reference this article. 
-(Or expire all pages that reference the @site's tags collection when the tags
+(Or expire all pages that reference the `@site`'s tags collection when the tags
 change.)
 
     class Admin::ArticlesController < ApplicationController
@@ -78,5 +78,5 @@ fine-grained cache tracking and performance.
 ## Etc
 
 Authors: [Sven Fuchs](http://www.artweb-design.de) <svenfuchs at artweb-design dot de>  
-Kudosto: [Rick Olson](http://techno-weenie.net/) for the original [Referenced Page Caching](http://svn.techno-weenie.net/projects/plugins/referenced_page_caching/) plugin
+Kudos: [Rick Olson](http://techno-weenie.net/) for the original [Referenced Page Caching](http://svn.techno-weenie.net/projects/plugins/referenced_page_caching/) plugin  
 License: MIT 
