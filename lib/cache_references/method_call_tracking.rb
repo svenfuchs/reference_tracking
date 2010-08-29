@@ -8,15 +8,19 @@
 # the) first call. The given array will then equal [[the_object, :foo]].
 module CacheReferences
   module MethodCallTracking
-    def track_method_calls(tracker, *methods)
+    def track_method_calls(tracker, methods)
       meta_class = (class << self; self; end)
       methods.each do |method|
-        meta_class.send :define_method, method do |*args|
+        meta_class.send(:define_method, method) do |*args|
           tracker << [self, method]
-          meta_class.send :remove_method, method
+          meta_class.send(:remove_method, method)
           super
         end
       end
+    end
+    
+    def reference_tag
+      "#{self.class.name.underscore}-#{id}"
     end
 
     # Tracks method access on trackable objects. Trackables can be given as 
@@ -35,44 +39,44 @@ module CacheReferences
     class Tracker
       attr_reader :references
       
-      def initialize
+      def initialize(owner = nil, trackables = nil)
         @references = []
+        track(owner, trackables) if owner
       end
       
-      def track(owner, *trackables)
+      def track(owner, trackables)
         trackables.each do |trackable|
-          trackable = { trackable => nil } unless trackable.is_a? Hash
+          trackable = { trackable => nil } unless trackable.is_a?(Hash)
           trackable.each do |trackable, methods|
             trackable = resolve_trackable(owner, trackable)
             track_methods(trackable, methods) unless trackable.nil?
           end
         end
       end
+      
+      def tags
+        references.map { |reference|reference.first.reference_tag }.uniq.join(',')
+      end
     
       protected
     
-        # Resolves the trackable by looking it up on the owner. Trackables  will be 
+        # Resolves the trackable by looking it up on the owner. Trackables will be 
         # interpreted as instance variables when they start with an @ and as method
         # names otherwise.
         def resolve_trackable(owner, trackable)
-          case trackable.to_s
-            when /^@/   then owner.instance_variable_get(trackable.to_sym)
-            else             owner.send(trackable.to_sym)
-          end
+          trackable.to_s[0, 1] == '@' ? 
+            owner.instance_variable_get(trackable.to_sym) :
+            owner.send(trackable.to_sym)
         end
       
         # Wraps the trackable into a MethodReadObserver and registers itself as an observer. 
         # Sets up tracking for the read_attribute method when the methods argument is nil. 
         # Sets up tracking for any other given methods otherwise.
         def track_methods(trackable, methods)
-          methods ||= :read_attribute
-          methods = [methods] if methods && !methods.is_a?(Array)
-
-          if trackable.is_a? Array
-            trackable.each { |trackable| track_methods trackable, methods }
-          else
-            trackable.track_method_calls(references, *methods) unless methods.empty?
-          end
+          methods = Array(methods || :read_attribute)
+          Array(trackable).each do |trackable|
+            trackable.track_method_calls(references, methods)
+          end unless methods.empty?
         end
     end
   end

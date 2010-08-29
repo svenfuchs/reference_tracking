@@ -1,4 +1,11 @@
-## Page Cache Tagging
+## Cache Reference Tagging
+
+BIG REWRITE FOR RAILS 3 AHEAD. 
+
+Won't rely on anything but Rack::Cache in future, i.e. no Rails page caching.
+
+
+THE FOLLOWING ONLY APPLIES TO THE TAG rails-2.x
 
 Largely inspired by Rick Olson's [Referenced Page Caching](http://svn.techno-weenie.net/projects/plugins/referenced_page_caching/)
 this plugin uses a more normalized database schema for better performance 
