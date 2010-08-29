@@ -1,0 +1,41 @@
+BaseController
+  tracks :resource, :current_site => [:title, :sections]
+
+BlogController#show
+  tracks :resource => :posts
+  => tags site-1.title
+  => tags site-1.sections
+  => tags site-1.sections
+  => tags blog-1.*
+  => tags post-1.*, post-2.*, ...
+
+BlogController#create
+  purges :site => [:section]
+  => purge site.sections
+  
+BlogController#update
+  purges :blog => [:title, :path, :categories] ???
+  => purge blog-1.title      (if title was changed)
+  => purge blog-1.path       (if path was changed)
+  => purge blog-1.categories (if categories were changed)
+
+PostController#show
+  tracks :resource => :posts
+  => tags site-1.title
+  => tags site-1.sections
+  => tags blog-1.title, blog-1.path, blog-1.categories
+  => tags post-1.*
+
+PostController#create
+  purges :resource => { :blog => [:posts] }
+  => purge blog-1.posts
+
+PostController#update
+  purges :resource, :resource => { :blog => [:posts] }
+  => purge blog-1.posts
+  => purge post-1.*
+
+PostController#destroy
+  purges :resource, :resource => { :blog => [:posts] }
+  => purge blog-1.posts
+  => purge post-1.*

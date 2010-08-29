@@ -1,0 +1,3 @@
+module ReferenceTracking
+  VERSION = "0.0.1"
+end

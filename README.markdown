@@ -1,4 +1,4 @@
-## Cache Reference Tagging
+## Reference Tagging
 
 BIG REWRITE FOR RAILS 3 AHEAD. 
 

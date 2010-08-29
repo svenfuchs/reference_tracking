@@ -1,43 +1,60 @@
 require File.expand_path('../test_helper', __FILE__)
 
-class ReferenceTrackingTest < Test::Unit::TestCase
-  attr_reader :controller, :article, :comment
-  
-  def setup
-    @article = Article.new
-    @comment = Comment.new
+class ActionController::Base
+  def render(*)
+    yield
+  end
 
+  def params
+    { :action => :show }
+  end
+end
+
+class ArticlesController < ActionController::Base
+  def article
+    @article ||= Article.new
+  end
+end
+
+class Article
+  def initialize
+    @attributes = { :title => '', :body => '' }
+  end
+
+  def id; 1 end
+  def section; end
+
+  def method_missing(name)
+    @attributes[name]
+  end
+end
+
+class ReferenceTrackingTest < Test::Unit::TestCase
+  delegate :article, :to => :controller
+  attr_reader :controller
+
+  def setup
     @controller = ArticlesController.new
-    @controller.instance_variable_set(:@article, @article)
-    @controller.instance_variable_set(:@comments, [@comment])
+    controller.response = ActionDispatch::Response.new
   end
-  
-  def tracker
-    controller.instance_variable_get(:@reference_tracker)
+
+  def teardown
+    ArticlesController.reference_tracking_options = nil
   end
-  
-  test 'accessing an attribute on an observed object records the reference' do
-    controller.process { article.title }
-    assert tracker.references.include?([article, :read_attribute])
+
+  def references
+    controller.instance_variable_get(:@_references)
   end
-  
-  test 'accessing a registered method on an observed object records the reference' do
-    controller.process { article.section }
-    assert tracker.references.include?([article, :section])
+
+  test 'tracking a method' do
+    ArticlesController.tracks :article
+    controller.render { article }
+    assert references.include?([article, nil])
   end
-  
-  test 'accessing an attribute on an observed array of objects records the reference' do
-    controller.process { comment.body }
-    assert tracker.references.include?([comment, :read_attribute])
-  end
-  
-  test 'accessing a registered method on an observed array of objects records the reference' do
-    controller.process { comment.section }
-    assert tracker.references.include?([comment, :section])
-  end
-  
-  test 'adds reference tags to the headers hash' do
-    controller.process { article.title; comment.section; comment.body }
-    assert_equal 'article-1,comment-2', controller.headers[CacheReferences::ReferenceTracking::TAGS_HEADER]
+
+  test 'tracking a method on a tracked method' do
+    ArticlesController.tracks :article => :title
+    controller.render { article.title }
+    assert references.include?([article, :title])
   end
 end
