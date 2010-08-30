@@ -12,11 +12,11 @@ module ReferenceTracking
         end
 
         options = args.extract_options!
-        actions = (options[:only] || [:index, :show]) - (options[:except] || [])
-        args.each { |arg| options[arg] = nil }
+        actions = Array(options.delete(:only) || [:index, :show]) - Array(options.delete(:except))
+        args << options unless options.empty?
 
         actions.map(&:to_sym).each do |action|
-          self.reference_tracking_options[action] = options
+          self.reference_tracking_options[action] = args
         end
       end
 

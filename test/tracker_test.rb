@@ -1,69 +1,159 @@
 require File.expand_path('../test_helper', __FILE__)
 
+class Blog
+  def id; 1 end
+  def title; 'the title' end
+  def posts; @posts ||= [Post.new] end
+end
+
+class Post
+  def id; 1 end
+  def title; 'the title' end
+  def body; 'the body' end
+  def blog; @blog ||= Blog.new end
+  def author; @author ||= User.new end
+end
+
+class User
+  def id; 1 end
+end
+
+class Controller
+  extend ReferenceTracking::ActionController::ActMacro
+  def blog; @blog ||= Blog.new end
+  def post; @post ||= Post.new end
+  def params; { :action => :show } end
+end
+
+# tracks :post                    # => tags post-1.*
+# tracks 'post.title'             # => tags post-1.title
+# tracks :post => :blog           # => tags blog-1.*
+# tracks :blog => :posts          # => tags post-1.*, post-1.*, ...
+
 class TrackerTest < Test::Unit::TestCase
-  include ReferenceTracking
-
-  class Object
-    def foo; @foo ||= Foo.new end
-    def bar; end
-  end
-  
-  class Foo
-    def bar; @bar ||= Bar.new end
-  end
-  
-  class Bar
-    def baz; end
+  def teardown
+    Controller.send(:remove_const, :Tracker) rescue
+    @controller = nil
   end
 
-  attr_reader :object, :references
-
-  def setup
-    @object = Object.new
-    @references = []
+  def controller
+    @controller ||= Controller.new.tap { |c| c.send(:setup_reference_tracking) }
   end
 
-  test "tracker_for returns the tracker tracker module for the given object" do
-    tracker = Tracker.tracker_for(object)
-    assert_equal object.singleton_class.const_get(:ReferenceTracker), tracker
-    assert_equal tracker.object_id, Tracker.tracker_for(object).object_id
+  def references
+    controller.instance_variable_get(:@_references)
   end
 
-  test "tracker_for returns a unique tracker tracker module for each object" do
-    assert_not_equal Tracker.tracker_for(Object.new).object_id, Tracker.tracker_for(Object.new).object_id
+  def repeatedly
+    2.times do
+      references.clear
+      yield
+    end
   end
 
-  test "setup_tracking makes the object track calls to a given method" do
-    Tracker.setup(object, references, :foo)
-    foo = object.foo
-    assert_equal [[foo, nil]], references
+  test "tracking a target" do
+    Controller.tracks(:post)
+    repeatedly do
+      controller.post
+      assert_equal ['post-1'], references.tags
+    end
   end
 
-  test "setup_tracking makes the object track calls to methods given as an Array" do
-    Tracker.setup(object, references, [:foo, :bar])
-    foo = object.foo
-    bar = object.bar
-    assert_equal [[foo, nil], [bar, nil]], references
+  test "tracking a method on a target (compact notation)" do
+    Controller.tracks('post.title')
+    repeatedly do
+      post = controller.post
+      assert_equal [], references
+      controller.post.title
+      assert_equal ['post-1:title'], references.tags
+    end
   end
 
-  test "setup_tracking makes the object track calls to a given nested method hash" do
-    Tracker.setup(object, references, :foo => { :bar => :baz })
-    object.foo.bar.baz
-    assert_equal [[object.foo.bar, :baz]], references
+  test "tracking a method on a target (hash notation)" do
+    Controller.tracks(:post => '.title')
+    repeatedly do
+      post = controller.post
+      assert_equal [], references
+      controller.post.title
+      assert_equal ['post-1:title'], references.tags
+    end
   end
 
-  test "setup_tracking looks up a given ivar on the object and makes it track calls on the object" do
-    object.instance_variable_set(:@foo, Foo.new)
-    Tracker.setup(object, references, :@foo)
-    foo = object.instance_variable_get(:@foo)
-    foo.bar
-    assert_equal [[foo, nil]], references
+  test "tracking a target on a target" do
+    Controller.tracks(:post => :blog)
+    repeatedly do
+      controller.post
+      assert_equal [], references
+      controller.post.title
+      assert_equal [], references
+      controller.post.blog.title
+      assert_equal ['blog-1'], references.tags
+    end
   end
 
-  test "setup_tracking looks up a given ivar on the object and makes it track calls to a given method" do
-    foo = object.instance_variable_set(:@foo, Foo.new)
-    Tracker.setup(object, references, :@foo => :bar)
-    foo.bar
-    assert_equal [[foo, :bar]], references
+  # FIXME
+  #
+  # test "tracking a method on a target on a target (compact notation)" do
+  #   Controller.tracks(:post => 'blog.title')
+  #   repeatedly do
+  #     controller.post
+  #     assert_equal [], references
+  #     controller.post.title
+  #     assert_equal [], references
+  #     controller.post.blog.title
+  #     assert_equal ['blog-1:title'], references.tags
+  #   end
+  # end
+
+  test "tracking a method on a target on a target (hash notation)" do
+    Controller.tracks(:post => { :blog => '.title' })
+    repeatedly do
+      controller.post
+      assert_equal [], references
+      controller.post.title
+      assert_equal [], references
+      controller.post.blog.title
+      assert_equal ['blog-1:title'], references.tags
+    end
+  end
+
+  test "tracking an array of methods on a target" do
+    Controller.tracks(:post => %w(.title .body))
+    repeatedly do
+      controller.post.title
+      controller.post.body
+      assert_equal ['post-1:title', 'post-1:body'], references.tags
+    end
+  end
+
+  test "tracking multiple targets on a target" do
+    Controller.tracks(:post => [:author, { :blog => '.title' }])
+    repeatedly do
+      controller.post.author
+      controller.post.blog.title
+      assert_equal ['user-1', 'blog-1:title'], references.tags
+    end
+  end
+
+  test "tracking a target that returns an array on a target" do
+    Controller.tracks(:blog => :posts)
+    repeatedly do
+      controller.blog
+      assert_equal [], references
+      # FIXME this probably should not track anything yet. instead it should
+      # kick in when any method on a post was called? because otherwise named
+      # scopes would be evaluated early?
+      controller.blog.posts
+      assert_equal ['post-1'], references.tags
+    end
+  end
+
+  test "can combine notations" do
+    Controller.tracks(:post => [:blog, '.title']) # 
+    repeatedly do
+      controller.post.blog
+      controller.post.title
+      assert_equal ['blog-1', 'post-1:title'], references.tags
+    end
   end
 end

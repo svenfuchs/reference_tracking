@@ -5,7 +5,9 @@ module ReferenceTracking
     end
 
     def tags
-      map { |object, method| "#{object.class.name.underscore}-#{object.id}" }.uniq
+      map do |object, method| 
+        "#{object.class.name.underscore}-#{object.id}#{":#{method}" if method}"
+      end.uniq
     end
   end
 end

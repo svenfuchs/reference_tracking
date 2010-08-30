@@ -3,7 +3,7 @@ require 'action_controller'
 
 module ReferenceTracking
   autoload :ActionController, 'reference_tracking/action_controller'
-  autoload :Proxy,            'reference_tracking/proxy'
+  autoload :IvarProxy,        'reference_tracking/ivar_proxy'
   autoload :Tracker,          'reference_tracking/tracker'
   autoload :References,       'reference_tracking/references'
 end

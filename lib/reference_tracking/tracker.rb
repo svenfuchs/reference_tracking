@@ -1,3 +1,10 @@
+# tracks :post                    # => tags post-1.*
+# tracks 'post.title'             # => tags post-1.title
+# tracks :post => :blog           # => tags blog-1.*
+# tracks :blog => :posts          # => tags post-1.*, post-1.*, ...
+
+require 'active_support/core_ext/array/wrap'
+
 module ReferenceTracking
   module Tracker
     class << self
@@ -5,77 +12,63 @@ module ReferenceTracking
         base.extend(ClassMethods)
       end
 
-      def setup(object, references, targets)
-        targets = { targets => nil } unless targets.is_a?(Hash)
-        tracker_for(object).track_targets(object, references, targets)
+      def setup(object, references, targets, options = {})
+        tracker_for(object).track(object, references, targets, options)
       end
 
       def tracker_for(object)
         const, name = object.singleton_class, :ReferenceTracker
         tracker = const.const_defined?(name) ? const.const_get(name) : const.const_set(name, TRACKER.dup)
-        object.singleton_class.send(:include, tracker)
+        object.singleton_class.send(:include, tracker) unless object.singleton_class.included_modules.include?(tracker)
         tracker
       end
     end
 
     module ClassMethods
-      def track_targets(object, references, targets)
-        targets.each do |target, method|
-          Array(target).each do |target|
-            if target.to_s[0, 1] == '@'
-              track_ivar(object, references, target, method)
-            else
-              track_target(object, references, target, method)
-            end
+      def track(object, references, targets, options)
+        Array.wrap(targets).each do |target|
+          if target.is_a?(Hash)
+            target.each { |target, nested| delegate_tracking(references, target, nested) }
+          elsif options[:delegated]
+            send(options[:delegated], references, target)
+          elsif target.to_s.include?('.')
+            delegate_tracking(references, *target.to_s.split('.') << :track_calls_to)
+          else
+            track_calls_on(references, target)
           end
-        end
-      end
-
-      def track_ivar(owner, references, name, method)
-        object = owner.instance_variable_get(name)
-        if method
-          Tracker.tracker_for(object).track_calls_on(references, method)
-        else
-          owner.instance_variable_set(name, Proxy.new(owner, name, object, references))
-        end
-      end
-
-      def track_target(object, references, target, method)
-        case method
-        when NilClass, Symbol, String
-          track_calls_to(references, target, method)
-        when Hash
-          track_nested(references, target, method)
-        end
-      end
-
-      def track_calls_to(references, target, method)
-        define_method(target) do |*args|
-          reference_tracking.send(:remove_method, target)
-          super.tap { |object| references << [object, method] }
         end
       end
 
       def track_calls_on(references, target)
         define_method(target) do |*args|
-          reference_tracking.send(:remove_method, target)
-          references << [self, target]
+          # Tracker.tracker_for(self).send(:remove_method, target)
+          super.tap { |object| Array(object).each { |object| references << [object, nil] } }
+        end
+      end
+
+      def track_calls_to(references, method)
+        method = method.to_s.split('.').last if method.to_s.include?('.')
+        define_method(method) do |*args|
+          # Tracker.tracker_for(self).send(:remove_method, method)
+          references << [self, method]
           super
         end
       end
 
-      def track_nested(references, target, nested)
+      def delegate_tracking(references, target, delegated, method = :track_calls_on)
         define_method(target) do |*|
-          reference_tracking.send(:remove_method, target)
-          super.tap { |object| Tracker.setup(object, references, nested) }
+          # Tracker.tracker_for(self).send(:remove_method, target)
+          super.tap { |object| 
+            Array.wrap(delegated).each do |delegated|
+              delegated = [delegated] if delegated.is_a?(Hash)
+              _method = delegated.to_s.start_with?('.') ? :track_calls_to : method
+              Tracker.setup(object, references, delegated, :delegated => _method)
+            end
+           }
         end
       end
     end
 
     TRACKER = Module.new.tap { |m| m.send(:include, Tracker) }
-
-    def reference_tracking
-      Tracker.tracker_for(self)
-    end
   end
 end

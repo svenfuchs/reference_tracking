@@ -1,5 +1,5 @@
 module ReferenceTracking
-  class Proxy
+  class IvarProxy
     instance_methods.each { |m| undef_method(m) unless %w(__send__ __id__ inspect).include?(m) }
 
     def initialize(owner, name, object, references)
