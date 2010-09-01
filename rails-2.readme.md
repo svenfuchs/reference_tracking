@@ -1,9 +1,4 @@
-## Reference Tagging
-
-BIG REWRITE FOR RAILS 3 AHEAD. 
-
-Won't rely on anything but Rack::Cache in future, i.e. no Rails page caching.
-
+## Cache References
 
 THE FOLLOWING ONLY APPLIES TO THE TAG rails-2.x
 
