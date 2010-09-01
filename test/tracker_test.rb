@@ -25,10 +25,14 @@ class Controller
   def params; { :action => :show } end
 end
 
-# tracks :post                    # => tags post-1.*
-# tracks 'post.title'             # => tags post-1.title
-# tracks :post => :blog           # => tags blog-1.*
-# tracks :blog => :posts          # => tags post-1.*, post-1.*, ...
+# tracks :post                          # => post-1
+# tracks 'post.title'                   # => post-1.title
+# tracks :post => '.title'              # => post-1.title
+# tracks :post => :blog                 # => blog-1
+# tracks :post => %w(.title .body)      # => post-1.title, post-1.body
+# tracks :post => [:blog, '.title']     # => blog-1, post-1.title
+# tracks :post => { :blog => '.title' } # => blog-1.title
+# tracks :blog => :posts                # => post-1, post-1, ...
 
 class TrackerTest < Test::Unit::TestCase
   def teardown
