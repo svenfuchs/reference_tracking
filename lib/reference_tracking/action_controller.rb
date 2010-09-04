@@ -1,7 +1,5 @@
 module ReferenceTracking
   module ActionController
-    TAGS_HEADER = 'rack-cache.tags'
-
     module ActMacro
       def tracks(*args)
         unless tracks_references?
@@ -16,7 +14,8 @@ module ReferenceTracking
         args << options unless options.empty?
 
         actions.map(&:to_sym).each do |action|
-          self.reference_tracking_options[action] = args
+          self.reference_tracking_options[action] ||= []
+          self.reference_tracking_options[action] += args
         end
       end
 
@@ -25,22 +24,17 @@ module ReferenceTracking
       end
     end
 
+    # TODO could this hook into instrumentation?
+    # ActiveSupport::Notifications.instrument("render_template.action_view", ...)?
+
     def render(*)
-      setup_reference_tracking
+      methods = reference_tracking_options[params[:action].to_sym] || {}
+      @_references = ReferenceTracking::References.new(self, methods)
+
       result = super
-      store_reference_tag_headers
+
+      headers[reference_tracking_options[:header]] = @_references.tags
       result
     end
-
-    protected
-
-      def setup_reference_tracking
-        methods = reference_tracking_options[params[:action].to_sym] || {}
-        @_references = ReferenceTracking::References.new(self, methods)
-      end
-
-      def store_reference_tag_headers
-        headers[reference_tracking_options[:header]] = @_references.tags
-      end
   end
 end

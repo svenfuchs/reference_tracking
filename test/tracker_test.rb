@@ -36,21 +36,24 @@ end
 
 class TrackerTest < Test::Unit::TestCase
   def teardown
-    Controller.send(:remove_const, :Tracker) rescue
+    Controller.reference_tracking_options = nil
     @controller = nil
   end
 
   def controller
-    @controller ||= Controller.new.tap { |c| c.send(:setup_reference_tracking) }
+    @controller ||= Controller.new.tap do |c|
+      methods = c.reference_tracking_options[:show] || {}
+      @references = ReferenceTracking::References.new(c, methods)
+    end
   end
 
   def references
-    controller.instance_variable_get(:@_references)
+    @references
   end
 
   def repeatedly
     2.times do
-      references.clear
+      references.clear if references
       yield
     end
   end
@@ -121,12 +124,21 @@ class TrackerTest < Test::Unit::TestCase
     end
   end
 
-  test "tracking an array of methods on a target" do
+  test "tracking an array of methods on a target (1)" do
     Controller.tracks(:post => %w(.title .body))
     repeatedly do
       controller.post.title
       controller.post.body
       assert_equal ['post-1:title', 'post-1:body'], references.tags
+    end
+  end
+
+  test "tracking an array of methods on a target (2)" do
+    Controller.tracks(:post => %w(.title .body))
+    repeatedly do
+      controller.post.body
+      controller.post.title
+      assert_equal ['post-1:body', 'post-1:title'], references.tags
     end
   end
 
