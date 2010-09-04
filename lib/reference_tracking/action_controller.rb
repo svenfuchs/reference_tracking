@@ -33,7 +33,7 @@ module ReferenceTracking
 
       result = super
 
-      headers[reference_tracking_options[:header]] = @_references.tags
+      headers[reference_tracking_options[:header]] = @_references.tags unless @_references.empty?
       result
     end
   end
