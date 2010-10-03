@@ -5,7 +5,7 @@ module ReferenceTracking
     end
 
     def tags
-      map { |object, method| ReferenceTracking.to_tag(object, method) }.uniq
+      uniq.map { |object, method| ReferenceTracking.to_tag(object, method) }
     end
   end
 end

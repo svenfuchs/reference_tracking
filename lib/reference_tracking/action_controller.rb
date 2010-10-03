@@ -60,7 +60,11 @@ module ReferenceTracking
 
     module Purging
       def purge(objects)
-        response.headers[purging_options[:header]] = objects.map { |object| ReferenceTracking.to_tag(object) }
+        tags = objects.map do |object|
+          methods = (object.previous_changes.keys & object.attributes.keys) - %w(updated_at)
+          methods.map { |method| ReferenceTracking.to_tag(object, method) }
+        end
+        response.headers[purging_options[:header]] = tags.flatten
       end
     end
   end
