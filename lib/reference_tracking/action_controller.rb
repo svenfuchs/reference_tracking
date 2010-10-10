@@ -1,3 +1,5 @@
+require 'active_support/core_ext/array/grouping'
+
 module ReferenceTracking
   module ActionController
     module ActMacro
@@ -59,12 +61,40 @@ module ReferenceTracking
     end
 
     module Purging
+      SKIP_ATTRIBUTES = %w(id created_at updated_at)
+
       def purge(objects)
-        tags = objects.map do |object|
-          methods = (object.previous_changes.keys & object.attributes.keys) - %w(updated_at)
+        tags = objects.map { |object| purge_tags_for(object)  }.flatten
+        response.headers[purging_options[:header]] = tags
+      end
+
+      def purge_tags_for(object)
+        case params[:action]
+        when 'create', 'destroy'
+          tags = purge_associations_for(object).map do |owner, method|
+            ReferenceTracking.to_tag(owner, method)
+          end
+          tags << ReferenceTracking.to_tag(object) if params[:action] == 'destroy'
+          tags
+        when 'update'
+          methods = object.previous_changes.keys & object.attributes.keys - SKIP_ATTRIBUTES
           methods.map { |method| ReferenceTracking.to_tag(object, method) }
         end
-        response.headers[purging_options[:header]] = tags.flatten
+      end
+
+      def purge_associations_for(object)
+        superclasses = purge_super_classes_for(object)
+        object.class.reflect_on_all_associations(:belongs_to).map do |association|
+          if owner = object.send(association.name)
+            owner.class.reflect_on_all_associations.map do |association|
+              [owner, association.name] if superclasses.include?(association.class_name)
+            end
+          end
+        end.flatten.compact.in_groups_of(2)
+      end
+
+      def purge_super_classes_for(object)
+        object.class.ancestors.select { |klass| klass < ActiveRecord::Base }.map(&:name)
       end
     end
   end
