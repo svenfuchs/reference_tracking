@@ -17,4 +17,7 @@ Gem::Specification.new do |s|
   s.require_path = 'lib'
   s.rubyforge_project = '[none]'
   s.required_rubygems_version = '>= 1.3.6'
+
+  s.add_development_dependency 'mocha'
+  s.add_development_dependency 'test_declarative'
 end
