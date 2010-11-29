@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
   s.rubyforge_project = '[none]'
   s.required_rubygems_version = '>= 1.3.6'
 
+  s.add_dependency 'actionpack'
   s.add_dependency 'activesupport'
   s.add_development_dependency 'mocha'
   s.add_development_dependency 'test_declarative'
