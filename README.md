@@ -1,4 +1,4 @@
-# Reference Tracking
+# Reference Tracking [![Build Status](https://secure.travis-ci.org/svenfuchs/reference_tracking.png?branch=master)](http://travis-ci.org/svenfuchs/reference_tracking)
 
 STATUS: pre-alpha, [readme-driven](http://tom.preston-werner.com/2010/08/23/readme-driven-development.html)
 
