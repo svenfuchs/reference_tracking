@@ -7,7 +7,9 @@ module ReferenceTracking
         unless tracks_references?
           include ReferenceTracking::ActionController::Tracking
 
-          class_inheritable_accessor :reference_tracking_options
+          method = respond_to?(:class_inheritable_accessor) ? :class_inheritable_accessor : :class_attribute
+          send(method, :reference_tracking_options)
+
           self.reference_tracking_options = { :header => TAGS_HEADER }
         end
 
