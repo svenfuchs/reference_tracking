@@ -27,22 +27,22 @@ module ReferenceTracking
       end
 
       def track_calls_on(object, references, target)
-        tracker_for(object).send(:define_method, target) do |*args|
-          super.tap { |object| Array(object).each { |object| references << [object, nil] } }
+        tracker_for(object).send(:define_method, target) do |*args, &block|
+          super(*args, &block).tap { |object| Array(object).each { |object| references << [object, nil] } }
         end
       end
 
       def track_calls_to(object, references, method)
         method = method.to_s.split('.').last if method.to_s.include?('.')
-        tracker_for(object).send(:define_method, method) do |*args|
+        tracker_for(object).send(:define_method, method) do |*args, &block|
           references << [self, method]
-          super
+          super(*args, &block)
         end
       end
 
       def delegate_tracking(object, references, target, delegateds, method = :track_calls_on)
-        tracker_for(object).send(:define_method, target) do |*|
-          super.tap do |object| 
+        tracker_for(object).send(:define_method, target) do |*args, &block|
+          super(*args, &block).tap do |object|
             Array.wrap(delegateds).each do |delegated|
               delegated = [delegated] if delegated.is_a?(Hash)
               _method = delegated.to_s.start_with?('.') ? :track_calls_to : method

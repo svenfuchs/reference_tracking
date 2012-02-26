@@ -11,7 +11,7 @@ class PostsController < ActionController::Base
 end
 
 class Record
-  undef_method :id
+  undef_method :id rescue nil
   def initialize; @attributes = { :id => 1, :title => '' } end
   def method_missing(name); @attributes[name] end
 end
